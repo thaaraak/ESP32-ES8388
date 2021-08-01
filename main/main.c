@@ -17,18 +17,44 @@
 #define NACK_VAL I2C_MASTER_NACK
 
 #define ES8388_ADDR 0b0010000
-#define I2C_MASTER_SDA_IO 22
-#define I2C_MASTER_SCL_IO 23
+
+#define VOL_DEFAULT 70
 
 
 #define SAMPLE_RATE     (44100)
 #define I2S_NUM         (0)
-#define WAVE_FREQ_HZ    (700)
+#define WAVE_FREQ_HZ    (1200)
 #define PI              (3.14159265)
+
+
 #define I2S_BCK_IO      (GPIO_NUM_5)
 #define I2S_WS_IO       (GPIO_NUM_18)
 #define I2S_DO_IO       (GPIO_NUM_21)
 #define I2S_DI_IO       (GPIO_NUM_19)
+#define I2C_MASTER_SDA_IO 22
+#define I2C_MASTER_SCL_IO 23
+#define IS2_MCLK_PIN	(GPIO_NUM_3)
+
+
+/*
+#define I2S_BCK_IO      (GPIO_NUM_5)
+#define I2S_WS_IO       (GPIO_NUM_25)
+#define I2S_DO_IO       (GPIO_NUM_26)
+#define I2S_DI_IO       (GPIO_NUM_35)
+#define I2C_MASTER_SDA_IO 18
+#define I2C_MASTER_SCL_IO 23
+#define IS2_MCLK_PIN	(GPIO_NUM_0)
+*/
+
+#define SAMPLE_PER_CYCLE (SAMPLE_RATE/WAVE_FREQ_HZ)
+
+#define SAMPLES			SAMPLE_PER_CYCLE	// Total number of samples left and right
+#define	BUF_SAMPLES		SAMPLES * 4			// Size of DMA tx/rx buffer samples * left/right * 2 for 32 bit samples
+
+// DMA Buffers
+uint16_t rxBuf[BUF_SAMPLES];
+uint16_t txBuf[BUF_SAMPLES];
+
 
 static const char *ES_TAG = "ES8388_DRIVER";
 
@@ -91,7 +117,7 @@ uint8_t i2c_read( uint8_t i2c_bus_addr, uint8_t reg)
 	    ret = i2c_master_cmd_begin( I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
 	    i2c_cmd_link_delete(cmd);
 
-	    //printf( "Read: [%d]\n", buffer[0] );
+	    printf( "Read: [%02x]=[%02x]\n", reg, buffer[0] );
 
 	    return (buffer[0]);
 }
@@ -124,6 +150,28 @@ static esp_err_t es_read_reg(uint8_t reg_add, uint8_t *p_data)
     return ESP_OK;
 }
 
+static int es8388_set_adc_dac_volume(int mode, int volume, int dot)
+{
+    int res = 0;
+    if ( volume < -96 || volume > 0 ) {
+        ESP_LOGW(ES_TAG, "Warning: volume < -96! or > 0!\n");
+        if (volume < -96)
+            volume = -96;
+        else
+            volume = 0;
+    }
+    dot = (dot >= 5 ? 1 : 0);
+    volume = (-volume << 1) + dot;
+    if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
+        res |= es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL8, volume);
+        res |= es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL9, volume);  //ADC Right Volume=0db
+    }
+    if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
+        res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL5, volume);
+        res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL4, volume);
+    }
+    return res;
+}
 
 esp_err_t es8388_init( es_dac_output_t output, es_adc_input_t input )
 {
@@ -159,7 +207,7 @@ esp_err_t es8388_init( es_dac_output_t output, es_adc_input_t input )
     res |= es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL4, 0x0d); // Left/Right data, Left/Right justified mode, Bits length, I2S format
     res |= es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL5, 0x02);  //ADCFsMode,singel SPEED,RATIO=256
     //ALC for Microphone
-    //res |= es8388_set_adc_dac_volume(ES_MODULE_ADC, 0, 0);      // 0db
+    res |= es8388_set_adc_dac_volume(ES_MODULE_ADC, 0, 0);      // 0db
     res |= es_write_reg(ES8388_ADDR, ES8388_ADCPOWER, 0x09); //Power on ADC, Enable LIN&RIN, Power off MICBIAS, set int1lp to low power mode
 
     return res;
@@ -187,11 +235,13 @@ esp_err_t es8388_config_i2s( es_bits_length_t bits_length, es_module_t mode, es_
 
     // Set the Format
     if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
+        printf( "Setting I2S ADC Format\n");
         res = es_read_reg(ES8388_ADCCONTROL4, &reg);
         reg = reg & 0xfc;
         res |= es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL4, reg | fmt);
     }
     if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
+        printf( "Setting I2S DAC Format\n");
         res = es_read_reg(ES8388_DACCONTROL1, &reg);
         reg = reg & 0xf9;
         res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL1, reg | (fmt << 1));
@@ -201,11 +251,13 @@ esp_err_t es8388_config_i2s( es_bits_length_t bits_length, es_module_t mode, es_
     // Set the Sample bits length
     int bits = (int)bits_length;
     if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC) {
+        printf( "Setting I2S ADC Bits: %d\n", bits);
         res = es_read_reg(ES8388_ADCCONTROL4, &reg);
         reg = reg & 0xe3;
         res |=  es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL4, reg | (bits << 2));
     }
     if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
+        printf( "Setting I2S DAC Bits: %d\n", bits);
         res = es_read_reg(ES8388_DACCONTROL1, &reg);
         reg = reg & 0xc7;
         res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL1, reg | (bits << 3));
@@ -239,20 +291,39 @@ esp_err_t es8388_start(es_module_t mode)
     }
     es_read_reg(ES8388_DACCONTROL21, &data);
     if (prev_data != data) {
+    	printf( "Resetting State Machine\n");
+
         res |= es_write_reg(ES8388_ADDR, ES8388_CHIPPOWER, 0xF0);   //start state machine
         // res |= es_write_reg(ES8388_ADDR, ES8388_CONTROL1, 0x16);
         // res |= es_write_reg(ES8388_ADDR, ES8388_CONTROL2, 0x50);
         res |= es_write_reg(ES8388_ADDR, ES8388_CHIPPOWER, 0x00);   //start state machine
     }
     if (mode == ES_MODULE_ADC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
+    	printf( "Powering up ADC\n");
         res |= es_write_reg(ES8388_ADDR, ES8388_ADCPOWER, 0x00);   //power up adc and line in
     }
     if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
+    	printf( "Powering up DAC\n");
         res |= es_write_reg(ES8388_ADDR, ES8388_DACPOWER, 0x3c);   //power up dac and line out
         res |= es8388_set_voice_mute(false);
-        ESP_LOGD(ES_TAG, "es8388_start default is mode:%d", mode);
     }
 
+    return res;
+}
+
+
+esp_err_t es8388_set_voice_volume(int volume)
+{
+    esp_err_t res = ESP_OK;
+    if (volume < 0)
+        volume = 0;
+    else if (volume > 100)
+        volume = 100;
+    volume /= 3;
+    res = es_write_reg(ES8388_ADDR, ES8388_DACCONTROL24, volume);
+    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL25, volume);
+    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL26, 0);
+    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL27, 0);
     return res;
 }
 
@@ -278,22 +349,22 @@ void es8388_config()
     //	es_mode_t  = ES_MODULE_ADC_DAC;
 
     es_bits_length_t bits_length = BIT_LENGTH_16BITS;
-    es_module_t module = ES_MODULE_ADC_DAC;
+    es_module_t module = ES_MODULE_DAC;
     es_format_t fmt = I2S_NORMAL;
 
-    es8388_config_i2s( bits_length, module, fmt );
-
+    es8388_config_i2s( bits_length, ES_MODULE_ADC_DAC, fmt );
+    es8388_set_voice_volume( VOL_DEFAULT );
     es8388_start( module );
 
-
 }
+
 
 esp_err_t i2s_mclk_gpio_select(i2s_port_t i2s_num, gpio_num_t gpio_num)
 {
 
 	// Ignore whatever is sent in and fix to Pin 3
 
-	gpio_num = GPIO_NUM_3;
+//	gpio_num = GPIO_NUM_3;
 
     if (i2s_num >= I2S_NUM_MAX) {
         ESP_LOGE(ES_TAG, "Does not support i2s number(%d)", i2s_num);
@@ -357,9 +428,36 @@ void i2s_init()
     };
     i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin(I2S_NUM, &pin_config);
-    i2s_mclk_gpio_select(I2S_NUM, (gpio_num_t)GPIO_NUM_3 );
+
+//    i2s_mclk_gpio_select(I2S_NUM, (gpio_num_t)GPIO_NUM_3 );
+    i2s_mclk_gpio_select(I2S_NUM, (gpio_num_t)IS2_MCLK_PIN );
+
     i2s_set_clk(I2S_NUM, SAMPLE_RATE, 16, 2);
 
+}
+
+
+static void setup_sine_waves16()
+{
+	double sin_float;
+
+    size_t i2s_bytes_write = 0;
+
+    //printf("\r\nFree mem=%d, written data=%d\n", esp_get_free_heap_size(), BUF_SAMPLES*2 );
+
+    for( int pos = 0; pos < BUF_SAMPLES; pos += 2 )
+    {
+        sin_float = 10000 * sin( pos/2 * 2 * PI / SAMPLE_PER_CYCLE);
+
+        int lval = sin_float;
+        int rval = sin_float;
+
+        txBuf[pos] = lval&0xFFFF;
+        txBuf[pos+1] = rval&0xFFFF;
+
+//        printf( "%d  %04x:%04x\n", lval, txBuf[pos],txBuf[pos+1] );
+
+    }
 }
 
 void app_main(void)
@@ -367,5 +465,20 @@ void app_main(void)
 	i2c_master_init();
 	es8388_config();
 	i2s_init();
+
+    size_t i2s_bytes_write = 0;
+
+    setup_sine_waves16();
+
+    while (1) {
+
+    	setup_sine_waves16();
+
+    	//i2s_write(I2S_NUM, txBuf, BUF_SAMPLES*2, &i2s_bytes_write, -1);
+    	i2s_write(I2S_NUM, txBuf, BUF_SAMPLES*2, &i2s_bytes_write, -1);
+    	//printf( "Bytes: %d\n", i2s_bytes_write );
+    	//vTaskDelay(10/portTICK_RATE_MS);
+
+    }
 }
 
