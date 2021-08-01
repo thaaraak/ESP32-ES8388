@@ -174,11 +174,11 @@ typedef enum {
 
 typedef enum {
     DAC_OUTPUT_MIN = -1,
-    DAC_OUTPUT_LOUT1 = 0x04,
+    DAC_OUTPUT_LOUT1 = 0x20,
     DAC_OUTPUT_LOUT2 = 0x08,
     DAC_OUTPUT_SPK   = 0x09,
     DAC_OUTPUT_ROUT1 = 0x10,
-    DAC_OUTPUT_ROUT2 = 0x20,
+    DAC_OUTPUT_ROUT2 = 0x04,
     DAC_OUTPUT_ALL = 0x3c,
     DAC_OUTPUT_MAX,
 } es_dac_output_t;

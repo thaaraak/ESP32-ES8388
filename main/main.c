@@ -23,7 +23,7 @@
 
 #define SAMPLE_RATE     (44100)
 #define I2S_NUM         (0)
-#define WAVE_FREQ_HZ    (1200)
+#define WAVE_FREQ_HZ    (400)
 #define PI              (3.14159265)
 
 
@@ -66,10 +66,12 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
 
 uint8_t i2c_write_bulk( uint8_t i2c_bus_addr, uint8_t reg, uint8_t bytes, uint8_t *data)
 {
+	/*
     printf( "Writing [%02x]=", reg );
     for ( int i = 0 ; i < bytes ; i++ )
         printf( "%02x:", data[i] );
     printf( "\n");
+*/
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -117,7 +119,7 @@ uint8_t i2c_read( uint8_t i2c_bus_addr, uint8_t reg)
 	    ret = i2c_master_cmd_begin( I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
 	    i2c_cmd_link_delete(cmd);
 
-	    printf( "Read: [%02x]=[%02x]\n", reg, buffer[0] );
+	    //printf( "Read: [%02x]=[%02x]\n", reg, buffer[0] );
 
 	    return (buffer[0]);
 }
@@ -152,12 +154,12 @@ static esp_err_t es_read_reg(uint8_t reg_add, uint8_t *p_data)
 
 void es8388_read_all()
 {
-	printf( "\n\n===================\n\n");
+	//printf( "\n\n===================\n\n");
     for (int i = 0; i < 50; i++) {
         uint8_t reg = 0;
         es_read_reg(i, &reg);
     }
-	printf( "\n\n===================\n\n");
+	//printf( "\n\n===================\n\n");
 }
 
 
@@ -316,7 +318,7 @@ esp_err_t es8388_start(es_module_t mode)
     }
     if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
     	printf( "Powering up DAC\n");
-        res |= es_write_reg(ES8388_ADDR, ES8388_DACPOWER, 0x3c);   //power up dac and line out
+        //res |= es_write_reg(ES8388_ADDR, ES8388_DACPOWER, 0x3c);   //power up dac and line out
         res |= es8388_set_voice_mute(false);
     }
 
@@ -334,8 +336,8 @@ esp_err_t es8388_set_voice_volume(int volume)
     volume /= 3;
     res = es_write_reg(ES8388_ADDR, ES8388_DACCONTROL24, volume);
     res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL25, volume);
-    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL26, 0);
-    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL27, 0);
+    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL26, volume);
+    res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL27, volume);
     return res;
 }
 
@@ -349,8 +351,9 @@ void es8388_config()
     // 	es_adc_input_t input = ADC_INPUT_LINPUT2_RINPUT2;
 
     //es_dac_output_t output = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
-	es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
-	//es_dac_output_t output = DAC_OUTPUT_LOUT2  | DAC_OUTPUT_ROUT2;
+	//es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
+//	es_dac_output_t output = DAC_OUTPUT_LOUT2  | DAC_OUTPUT_ROUT2;
+	es_dac_output_t output = 0;
 	es_adc_input_t input = ADC_INPUT_LINPUT1_RINPUT1;
 
     es8388_init( output, input );
