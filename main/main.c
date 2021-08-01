@@ -150,6 +150,18 @@ static esp_err_t es_read_reg(uint8_t reg_add, uint8_t *p_data)
     return ESP_OK;
 }
 
+void es8388_read_all()
+{
+	printf( "\n\n===================\n\n");
+    for (int i = 0; i < 50; i++) {
+        uint8_t reg = 0;
+        es_read_reg(i, &reg);
+    }
+	printf( "\n\n===================\n\n");
+}
+
+
+
 static int es8388_set_adc_dac_volume(int mode, int volume, int dot)
 {
     int res = 0;
@@ -192,7 +204,7 @@ esp_err_t es8388_init( es_dac_output_t output, es_adc_input_t input )
     res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL20, 0x90); // only right DAC to right mixer enable 0db
     res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL21, 0x80); //set internal ADC and DAC use the same LRCK clock, ADC LRCK as internal LRCK
     res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL23, 0x00);   //vroi=0
-    //res |= es8388_set_adc_dac_volume(ES_MODULE_DAC, 0, 0);          // 0db
+    res |= es8388_set_adc_dac_volume(ES_MODULE_DAC, 0, 0);          // 0db
 
     ESP_LOGE(ES_TAG, "Setting DAC Output: %02x", output );
     res |= es_write_reg(ES8388_ADDR, ES8388_DACPOWER, output );
@@ -336,8 +348,10 @@ void es8388_config()
     //	es_adc_input_t input = ADC_INPUT_LINPUT1_RINPUT1;
     // 	es_adc_input_t input = ADC_INPUT_LINPUT2_RINPUT2;
 
-    es_dac_output_t output = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
-    es_adc_input_t input = ADC_INPUT_LINPUT1_RINPUT1;
+    //es_dac_output_t output = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
+	es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
+	//es_dac_output_t output = DAC_OUTPUT_LOUT2  | DAC_OUTPUT_ROUT2;
+	es_adc_input_t input = ADC_INPUT_LINPUT1_RINPUT1;
 
     es8388_init( output, input );
 
@@ -464,6 +478,10 @@ void app_main(void)
 {
 	i2c_master_init();
 	es8388_config();
+
+	es8388_read_all();
+
+
 	i2s_init();
 
     size_t i2s_bytes_write = 0;
