@@ -52,8 +52,8 @@
 #define	BUF_SAMPLES		SAMPLES * 4			// Size of DMA tx/rx buffer samples * left/right * 2 for 32 bit samples
 
 // DMA Buffers
-uint16_t rxBuf[BUF_SAMPLES];
-uint16_t txBuf[BUF_SAMPLES];
+int16_t rxBuf[BUF_SAMPLES];
+int16_t txBuf[BUF_SAMPLES];
 
 
 static const char *ES_TAG = "ES8388_DRIVER";
@@ -454,7 +454,7 @@ void i2s_init()
 }
 
 
-static void setup_sine_waves16()
+static void setup_sine_waves16( int amplitude )
 {
 	double sin_float;
 
@@ -464,7 +464,7 @@ static void setup_sine_waves16()
 
     for( int pos = 0; pos < BUF_SAMPLES; pos += 2 )
     {
-        sin_float = 15000 * sin( pos/2 * 2 * PI / SAMPLE_PER_CYCLE);
+        sin_float = amplitude * sin( pos/2 * 2 * PI / SAMPLE_PER_CYCLE);
 
         int lval = sin_float;
         int rval = sin_float;
@@ -489,11 +489,17 @@ void app_main(void)
 
     size_t i2s_bytes_write = 0;
 
-    setup_sine_waves16();
+    int amplitude = 15000;
+    int start_dir = 50;
+    int dir = start_dir;
 
     while (1) {
 
-    	setup_sine_waves16();
+    	amplitude -= dir;
+    	if ( amplitude <= start_dir || amplitude >= 15000 )
+    		dir *= -1;
+
+    	setup_sine_waves16( amplitude );
 
     	//i2s_write(I2S_NUM, txBuf, BUF_SAMPLES*2, &i2s_bytes_write, -1);
     	i2s_write(I2S_NUM, txBuf, BUF_SAMPLES*2, &i2s_bytes_write, -1);
