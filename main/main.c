@@ -23,7 +23,7 @@
 
 #define SAMPLE_RATE     (44100)
 #define I2S_NUM         (0)
-#define WAVE_FREQ_HZ    (400)
+#define WAVE_FREQ_HZ    (700)
 #define PI              (3.14159265)
 
 
@@ -318,7 +318,7 @@ esp_err_t es8388_start(es_module_t mode)
     }
     if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC || mode == ES_MODULE_LINE) {
     	printf( "Powering up DAC\n");
-        //res |= es_write_reg(ES8388_ADDR, ES8388_DACPOWER, 0x3c);   //power up dac and line out
+        res |= es_write_reg(ES8388_ADDR, ES8388_DACPOWER, 0x3c);   //power up dac and line out
         res |= es8388_set_voice_mute(false);
     }
 
@@ -370,7 +370,7 @@ void es8388_config()
     es_format_t fmt = I2S_NORMAL;
 
     es8388_config_i2s( bits_length, ES_MODULE_ADC_DAC, fmt );
-    es8388_set_voice_volume( VOL_DEFAULT );
+    es8388_set_voice_volume( 70 );
     es8388_start( module );
 
 }
@@ -464,7 +464,7 @@ static void setup_sine_waves16()
 
     for( int pos = 0; pos < BUF_SAMPLES; pos += 2 )
     {
-        sin_float = 10000 * sin( pos/2 * 2 * PI / SAMPLE_PER_CYCLE);
+        sin_float = 15000 * sin( pos/2 * 2 * PI / SAMPLE_PER_CYCLE);
 
         int lval = sin_float;
         int rval = sin_float;
