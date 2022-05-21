@@ -27,13 +27,14 @@
 #define PI              (3.14159265)
 
 
-#define I2S_BCK_IO      (GPIO_NUM_5)
-#define I2S_WS_IO       (GPIO_NUM_18)
-#define I2S_DO_IO       (GPIO_NUM_21)
-#define I2S_DI_IO       (GPIO_NUM_19)
-#define I2C_MASTER_SDA_IO 22
-#define I2C_MASTER_SCL_IO 23
-#define IS2_MCLK_PIN	(GPIO_NUM_3)
+#define I2S_BCK_IO      (GPIO_NUM_27)
+#define I2S_WS_IO       (GPIO_NUM_25)
+#define I2S_DO_IO       (GPIO_NUM_26)
+#define I2S_DI_IO       (GPIO_NUM_35)
+#define IS2_MCLK_PIN	(GPIO_NUM_0)
+
+#define I2C_MASTER_SDA_IO 33
+#define I2C_MASTER_SCL_IO 32
 
 
 /*
@@ -271,7 +272,7 @@ esp_err_t es8388_config_i2s( es_bits_length_t bits_length, es_module_t mode, es_
         res |=  es_write_reg(ES8388_ADDR, ES8388_ADCCONTROL4, reg | (bits << 2));
     }
     if (mode == ES_MODULE_DAC || mode == ES_MODULE_ADC_DAC) {
-        printf( "Setting I2S DAC Bits: %d\n", bits);
+        ESP_LOGE(ES_TAG, "Setting I2S DAC Bits: %d\n", bits);
         res = es_read_reg(ES8388_DACCONTROL1, &reg);
         reg = reg & 0xc7;
         res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL1, reg | (bits << 3));
@@ -351,9 +352,10 @@ void es8388_config()
     // 	es_adc_input_t input = ADC_INPUT_LINPUT2_RINPUT2;
 
     //es_dac_output_t output = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
-	//es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
-//	es_dac_output_t output = DAC_OUTPUT_LOUT2  | DAC_OUTPUT_ROUT2;
-	es_dac_output_t output = 0;
+	es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
+	//es_dac_output_t output = DAC_OUTPUT_LOUT2  | DAC_OUTPUT_ROUT2;
+
+    //es_dac_output_t output = 0;
 	es_adc_input_t input = ADC_INPUT_LINPUT1_RINPUT1;
 
     es8388_init( output, input );
@@ -472,7 +474,7 @@ static void setup_sine_waves16( int amplitude )
         txBuf[pos] = lval&0xFFFF;
         txBuf[pos+1] = rval&0xFFFF;
 
-//        printf( "%d  %04x:%04x\n", lval, txBuf[pos],txBuf[pos+1] );
+        //printf( "%d  %04x:%04x\n", lval, txBuf[pos],txBuf[pos+1] );
 
     }
 }
