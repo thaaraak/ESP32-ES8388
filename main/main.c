@@ -351,8 +351,8 @@ void es8388_config()
     //	es_adc_input_t input = ADC_INPUT_LINPUT1_RINPUT1;
     // 	es_adc_input_t input = ADC_INPUT_LINPUT2_RINPUT2;
 
-    //es_dac_output_t output = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
-	es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
+    es_dac_output_t output = DAC_OUTPUT_LOUT1 | DAC_OUTPUT_LOUT2 | DAC_OUTPUT_ROUT1 | DAC_OUTPUT_ROUT2;
+	//es_dac_output_t output = DAC_OUTPUT_LOUT1  | DAC_OUTPUT_ROUT1;
 	//es_dac_output_t output = DAC_OUTPUT_LOUT2  | DAC_OUTPUT_ROUT2;
 
     //es_dac_output_t output = 0;
@@ -491,16 +491,16 @@ void app_main(void)
 
     size_t i2s_bytes_write = 0;
 
-    int amplitude = 15000;
+    int amplitude = 8000;
     int start_dir = 50;
     int dir = start_dir;
 
     while (1) {
 
-    	amplitude -= dir;
+/*    	amplitude -= dir;
     	if ( amplitude <= start_dir || amplitude >= 15000 )
     		dir *= -1;
-
+*/
     	setup_sine_waves16( amplitude );
 
     	//i2s_write(I2S_NUM, txBuf, BUF_SAMPLES*2, &i2s_bytes_write, -1);
